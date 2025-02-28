@@ -1,45 +1,28 @@
 import React, { useState, useEffect } from "react";
-import "./Pedidos.css";
-
-// Interfaces para tipagem
-interface ItemPedido {
-    id: string;
-    produto: string;
-    quantidade: number;
-    preco: number;
-}
-
-interface Pedido {
-    id: string;
-    cliente: string;
-    email: string;
-    itens: ItemPedido[];
-    total: number;
-    status: string;
-    data_criacao: string;
-}
+import { Container, Typography, Button, List, ListItem, ListItemText, IconButton } from "@mui/material";
+import EditIcon from "@mui/icons-material/Edit";
+import DeleteIcon from "@mui/icons-material/Delete";
+import VisibilityIcon from "@mui/icons-material/Visibility";
+import UpdateIcon from "@mui/icons-material/Update";
+import PedidoDetalhesModal from "./PedidosDetalheModal";
+import CriarPedidoModal from "./CriarPedidoModal";
+import EditarPedidoModal from "./EditarPedidoModal";
+import AlterarStatusModal from "./AlterarStatusModal";
+import { Pedido } from "../types";
 
 const Pedidos: React.FC = () => {
-    const [pedido, setPedido] = useState<Omit<Pedido, "id" | "total" | "status" | "data_criacao">>({
-        cliente: "",
-        email: "",
-        itens: [],
-    });
-    
-
-    const [novoItem, setNovoItem] = useState<Omit<ItemPedido, "id">>({
-        produto: "",
-        quantidade: 1,
-        preco: 0,
-    });
-
     const [pedidos, setPedidos] = useState<Pedido[]>([]);
-    const [mensagem, setMensagem] = useState<string>("");
-    const [loading, setLoading] = useState(false);
+    const [pedidoDetalhado, setPedidoDetalhado] = useState<Pedido | null>(null);
+    const [pedidoEditando, setPedidoEditando] = useState<Pedido | null>(null);
+    const [pedidoAlterandoStatus, setPedidoAlterandoStatus] = useState<Pedido | null>(null);
+    const [isDetalhesModalOpen, setIsDetalhesModalOpen] = useState(false);
+    const [isEditModalOpen, setIsEditModalOpen] = useState(false);
+    const [isStatusModalOpen, setIsStatusModalOpen] = useState(false);
+    const [isCriarModalOpen, setIsCriarModalOpen] = useState(false);
 
-    const API_URL_SALVAR_PEDIDOS = "https://salvar-pedido-155688859997.us-central1.run.app/pedidos";
     const API_URL_LISTAR_PEDIDOS = "https://listar-pedidos-155688859997.us-central1.run.app/pedidos";
-    const API_URL_DELETAR_PEDIDOS = "https://delete-pedido-155688859997.us-central1.run.app/pedidos";
+    const API_URL_DETALHAR_PEDIDO = "https://detalhar-pedido-155688859997.us-central1.run.app/pedidos";
+    const API_URL_DELETAR_PEDIDO = "https://delete-pedido-155688859997.us-central1.run.app/pedidos";
 
     // Buscar pedidos do backend
     const fetchPedidos = async () => {
@@ -57,162 +40,97 @@ const Pedidos: React.FC = () => {
         fetchPedidos();
     }, []);
 
-    const adicionarItem = () => {
-        if (novoItem.produto.trim() === "" || novoItem.preco <= 0 || novoItem.quantidade <= 0) {
-            return;
-        }
-
-        setPedido((prev) => ({
-            ...prev,
-            itens: [...prev.itens, { ...novoItem, id: crypto.randomUUID() }],
-        }));
-
-        setNovoItem({ produto: "", quantidade: 1, preco: 0 });
+    const handleCriarPedido = async (novoPedido: Pedido) => {
+        setPedidos((prevPedidos) => [...prevPedidos, novoPedido]);
+        fetchPedidos(); 
     };
 
-    const removerItem = (id: string) => {
-        setPedido((prev) => ({
-            ...prev,
-            itens: prev.itens.filter((item) => item.id !== id),
-        }));
-    };
-
-    const handleItemChange = (field: keyof ItemPedido, value: string | number) => {
-        setNovoItem((prev) => ({ ...prev, [field]: value }));
-    };
-
-    const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-        const { name, value } = e.target;
-        setPedido((prev) => ({ ...prev, [name]: value }));
-    };
-
-    const handleSubmit = async (e: React.FormEvent) => {
-        e.preventDefault();
-        setMensagem("");
-
-        if (pedido.itens.length === 0) {
-            setMensagem("Adicione pelo menos um item ao pedido.");
-            return;
-        }
-
+   
+    const handleDetalharPedido = async (id: string) => {
         try {
-            const response = await fetch(`${API_URL_SALVAR_PEDIDOS}/salvar_pedido`, {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify(pedido),
-            });
-
-            if (!response.ok) throw new Error("Erro ao criar pedido");
-
+            const response = await fetch(`${API_URL_DETALHAR_PEDIDO}/${id}`);
+            if (!response.ok) throw new Error("Erro ao buscar detalhes do pedido");
             const data = await response.json();
-            setMensagem(`Pedido criado com sucesso! ID: ${data.id}`);
-            setPedido({ cliente: "", email: "", itens: [] });
-
-            fetchPedidos();
+            setPedidoDetalhado(data);
+            setIsDetalhesModalOpen(true);
         } catch (error) {
-            setMensagem("Erro ao criar pedido. Tente novamente.");
+            console.error("Erro ao buscar detalhes do pedido:", error);
         }
+    };
+
+    const handleEditarPedido = async (id: string) => {
+        try {
+            const response = await fetch(`${API_URL_DETALHAR_PEDIDO}/${id}`);
+            if (!response.ok) throw new Error("Erro ao buscar detalhes do pedido");
+            const data = await response.json();
+            setPedidoEditando(data);
+            setIsEditModalOpen(true);
+        } catch (error) {
+            console.error("Erro ao buscar detalhes do pedido:", error);
+        }
+    };
+
+    const handleAlterarStatus = (pedido: Pedido) => {
+        setPedidoAlterandoStatus(pedido);
+        setIsStatusModalOpen(true);
     };
 
     const handleDeletePedido = async (id: string) => {
+        if (!window.confirm("Tem certeza que deseja excluir este pedido?")) {
+            return;
+        }
+
         try {
-            await fetch(`${API_URL_DELETAR_PEDIDOS}/${id}`, { method: "DELETE" });
-            setPedidos(pedidos.filter((p) => p.id !== id));
+            const response = await fetch(`${API_URL_DELETAR_PEDIDO}/${id}`, { method: "DELETE" });
+            if (!response.ok) throw new Error("Erro ao deletar pedido");
+
+            setPedidos(pedidos.filter((pedido) => pedido.id !== id));
+            alert("Pedido deletado com sucesso!");
         } catch (error) {
-            console.error("Erro ao excluir pedido:", error);
+            console.error("Erro ao deletar pedido:", error);
+            alert("Erro ao excluir o pedido. Tente novamente.");
         }
     };
 
     return (
-        <div className="container">
-            {/* Itens adicionados ao pedido */}
-            <div className="bloco verde">
-                <h2>Itens Adicionados no Pedido</h2>
-                {pedido.itens.length === 0 ? (
-                    <p className="mensagem">Nenhum item adicionado.</p>
-                ) : (
-                    <ul className="lista-itens">
-                        {pedido.itens.map((item) => (
-                            <li key={item.id} className="item-lista">
-                                <span>{item.produto} - {item.quantidade}x - R$ {item.preco.toFixed(2)}</span>
-                                <button className="btn-deletar" onClick={() => removerItem(item.id)}>🗑️</button>
-                            </li>
-                        ))}
-                    </ul>
-                )}
-            </div>
+        <Container>
+            <Typography variant="h4" gutterBottom>Listar Pedidos</Typography>
+            <Button variant="contained" color="success" onClick={() => setIsCriarModalOpen(true)}>➕ Criar Pedido</Button>
 
-            {/* Criar Pedido */}
-            <div className="bloco vermelho">
-                <h2>Criar Pedido</h2>
-                <form onSubmit={handleSubmit}>
-                    <div className="input-group">
-                        <label>Nome do Cliente:</label>
-                        <input type="text" name="cliente" value={pedido.cliente} onChange={handleChange} required />
-                    </div>
+            <List>
+                {pedidos.map((pedido) => (
+                    <ListItem key={pedido.id} divider>
+                        <ListItemText primary={`${pedido.cliente} - R$ ${pedido.total.toFixed(2)} - Status: ${pedido.status}`} />
 
-                    <div className="input-group">
-                        <label>Email:</label>
-                        <input type="email" name="email" value={pedido.email} onChange={handleChange} required />
-                    </div>
+                        
+                        <IconButton color="info" onClick={() => handleDetalharPedido(pedido.id)}>
+                            <VisibilityIcon />
+                        </IconButton>
 
-                    <h3>Adicionar Item</h3>
-                    <div className="item-group">
-                        <input
-                            type="text"
-                            placeholder="Nome do produto"
-                            value={novoItem.produto}
-                            onChange={(e) => handleItemChange("produto", e.target.value)}
-                            
-                        />
-                        <input
-                            type="number"
-                            placeholder="Quantidade"
-                            value={novoItem.quantidade}
-                            onChange={(e) => handleItemChange("quantidade", parseInt(e.target.value))}
-                            
-                        />
-                        <input
-                            type="number"
-                            step="0.01"
-                            placeholder="Preço unitário"
-                            value={novoItem.preco}
-                            onChange={(e) => handleItemChange("preco", parseFloat(e.target.value))}
-                            
-                        />
-                        <button type="button" className="btn-add" onClick={adicionarItem}>
-                            Adicionar Item
-                        </button>
-                    </div>
+                        
+                        <IconButton color="primary" onClick={() => handleEditarPedido(pedido.id)}>
+                            <EditIcon />
+                        </IconButton>
 
-                    <button type="submit" className="btn-submit">
-                        Criar Pedido
-                    </button>
-                </form>
+                        
+                        <IconButton color="warning" onClick={() => handleAlterarStatus(pedido)}>
+                            <UpdateIcon />
+                        </IconButton>
 
-                {mensagem && <p className="mensagem">{mensagem}</p>}
-            </div>
+                        
+                        <IconButton color="error" onClick={() => handleDeletePedido(pedido.id)}>
+                            <DeleteIcon />
+                        </IconButton>
+                    </ListItem>
+                ))}
+            </List>
 
-            {/* Listar Pedidos */}
-            <div className="bloco amarelo">
-                <h2>Listar Pedidos</h2>
-                <button className="btn-atualizar" onClick={fetchPedidos} disabled={loading}>
-                        🔄
-                </button>
-                {pedidos.length === 0 ? <p>Nenhum pedido encontrado.</p> : (
-                    <ul className="lista-pedidos">
-                        {pedidos.map((pedido) => (
-                            <li key={pedido.id} className="pedido-item">
-                                <span>{pedido.cliente} - R$ {pedido.total.toFixed(2)}</span>
-                                <div className="acoes">
-                                    <button className="deletar" onClick={() => handleDeletePedido(pedido.id)}>🗑️</button>
-                                </div>
-                            </li>
-                        ))}
-                    </ul>
-                )}
-            </div>
-        </div>
+            {/* Modais */}
+            <CriarPedidoModal open={isCriarModalOpen} onClose={() => setIsCriarModalOpen(false)} onPedidoCriado={handleCriarPedido} />
+            <PedidoDetalhesModal pedido={pedidoDetalhado} open={isDetalhesModalOpen} onClose={() => setIsDetalhesModalOpen(false)} />
+            <EditarPedidoModal pedido={pedidoEditando} open={isEditModalOpen} onClose={() => setIsEditModalOpen(false)} onPedidoAtualizado={fetchPedidos} />
+            <AlterarStatusModal pedido={pedidoAlterandoStatus} open={isStatusModalOpen} onClose={() => setIsStatusModalOpen(false)} onStatusAtualizado={fetchPedidos} />
+        </Container>
     );
 };
 

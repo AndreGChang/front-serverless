@@ -1,11 +1,15 @@
 import React from "react";
-import CriarPedido from "./components/Pedidos.tsx";
+import { CssBaseline, Container } from "@mui/material";
+import Pedidos from "./components/Pedidos";
 
 const App: React.FC = () => {
     return (
-        <div style={{ height: "100vh", width: "100vw", background: "#f4f4f4" }}>
-            <CriarPedido />
-        </div>
+        <>
+            <CssBaseline /> {/* Reseta estilos para manter a interface padronizada */}
+            <Container>
+                <Pedidos />
+            </Container>
+        </>
     );
 };
 
