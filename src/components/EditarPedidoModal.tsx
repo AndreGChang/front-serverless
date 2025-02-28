@@ -34,7 +34,7 @@ const EditarPedidoModal: React.FC<EditarPedidoModalProps> = ({ pedido, open, onC
     const [itens, setItens] = useState<ItemPedido[]>([]);
     const [novoItem, setNovoItem] = useState<ItemPedido>({ id: "", produto: "", quantidade: 1, preco: 0 });
 
-    const API_URL_UPDATE_PEDIDO = "https://update-pedido-155688859997.us-central1.run.app/pedido";
+    const API_URL_UPDATE_PEDIDO = "https://aualizar-status-pedido-155688859997.us-central1.run.app/pedidos";
 
     // Atualizar os estados quando o modal abrir
     useEffect(() => {
