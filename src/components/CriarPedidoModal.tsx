@@ -1,16 +1,19 @@
 import React, { useState } from "react";
-import { Dialog, DialogTitle, DialogContent, DialogActions, Button, TextField, List, ListItem, IconButton } from "@mui/material";
+import { Dialog, DialogTitle, DialogContent, DialogActions, Button, TextField, List, ListItem, IconButton, Alert, Snackbar } from "@mui/material";
 import AddIcon from "@mui/icons-material/Add";
 import DeleteIcon from "@mui/icons-material/Delete";
 
 import { Pedido, ItemPedido } from "../types";
 
 
-const API_URL_CRIAR_PEDIDO = "https://salvar-pedido-155688859997.us-central1.run.app/pedidos";
+// const API_URL_CRIAR_PEDIDO = `https://salvar-pedido-155688859997.us-central1.run.app/pedidos`;
+
+const API_URL_CRIAR_PEDIDO = import.meta.env.VITE_API_URL_CRIAR_PEDIDO;
+
 
 interface CriarPedidoModalProps {
     open: boolean;
-    onClose: () => void;
+    onClose: () => void; 
     onPedidoCriado: (novoPedido: Pedido) => void;
 }
 
@@ -19,10 +22,12 @@ const CriarPedidoModal: React.FC<CriarPedidoModalProps> = ({ open, onClose, onPe
     const [email, setEmail] = useState("");
     const [itens, setItens] = useState<ItemPedido[]>([]);
     const [novoItem, setNovoItem] = useState<ItemPedido>({ id: "", produto: "", quantidade: 1, preco: 0 });
+    const [alerta, setAlerta] = useState<{ message: string; severity: "success" | "error" | "info" | "warning" | null }>({ message: "", severity: null });
+    
 
     const adicionarItem = () => {
         if (!novoItem.produto.trim() || novoItem.preco <= 0 || novoItem.quantidade <= 0) {
-            alert("Preencha os campos corretamente para adicionar um item.");
+            setAlerta({ message: "Preencha os campos corretamente para adicionar um item.", severity: "warning" });
             return;
         }
 
@@ -36,7 +41,8 @@ const CriarPedidoModal: React.FC<CriarPedidoModalProps> = ({ open, onClose, onPe
 
     const handleCriarPedido = async () => {
         if (!cliente || !email || itens.length === 0) {
-            alert("Preencha todos os campos e adicione pelo menos um item.");
+            setAlerta({ message: "Preencha todos os campos e adicione pelo menos um item.", severity: "warning" });
+
             return;
         }
     
@@ -61,7 +67,7 @@ const CriarPedidoModal: React.FC<CriarPedidoModalProps> = ({ open, onClose, onPe
             if (!response.ok) throw new Error("Erro ao criar pedido");
     
             const data: Pedido = await response.json();
-            alert(`Pedido criado com sucesso! ID: ${data.id}`);
+            setAlerta({ message: "Pedido criado com sucesso! ID: ${data.id}", severity: "success" });
     
             
             onPedidoCriado(data);
@@ -73,7 +79,7 @@ const CriarPedidoModal: React.FC<CriarPedidoModalProps> = ({ open, onClose, onPe
     
             onClose();
         } catch (error) {
-            alert("Erro ao criar pedido. Tente novamente.");
+            setAlerta({ message: "Erro ao atualizar o pedido", severity: "error" });
         }
     };
     

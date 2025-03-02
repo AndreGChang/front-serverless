@@ -1,7 +1,8 @@
 import React, { useState, useEffect } from "react";
-import { Dialog, DialogTitle, DialogContent, DialogActions, Button, TextField, List, ListItem, IconButton } from "@mui/material";
+import { Dialog, DialogTitle, DialogContent, DialogActions, Button, TextField, List, ListItem, IconButton, Snackbar, Alert } from "@mui/material";
 import AddIcon from "@mui/icons-material/Add";
 import DeleteIcon from "@mui/icons-material/Delete";
+import EditIcon from "@mui/icons-material/Edit";
 
 // Interfaces para tipagem
 interface ItemPedido {
@@ -14,8 +15,8 @@ interface ItemPedido {
 interface Pedido {
     id: string;
     cliente: string;
-    email?: string; 
-    itens?: ItemPedido[]; 
+    email?: string;
+    itens?: ItemPedido[];
     total: number;
     status: string;
     data_criacao?: string;
@@ -33,45 +34,39 @@ const EditarPedidoModal: React.FC<EditarPedidoModalProps> = ({ pedido, open, onC
     const [email, setEmail] = useState("");
     const [itens, setItens] = useState<ItemPedido[]>([]);
     const [novoItem, setNovoItem] = useState<ItemPedido>({ id: "", produto: "", quantidade: 1, preco: 0 });
+    const [itemEditando, setItemEditando] = useState<ItemPedido | null>(null);
+    const [isEditItemModalOpen, setIsEditItemModalOpen] = useState(false);
+    const [total, setTotal] = useState(0);
+    const [alerta, setAlerta] = useState<{ message: string; severity: "success" | "error" | "info" | "warning" | null }>({ message: "", severity: null });
 
-    const API_URL_UPDATE_PEDIDO = "https://update-pedido-155688859997.us-central1.run.app/pedido";
+    // const API_URL_UPDATE_PEDIDO = "https://aualizar-status-pedido-155688859997.us-central1.run.app/pedidos";
 
-    // Atualizar os estados quando o modal abrir
+
+    const API_URL_UPDATE_PEDIDO = import.meta.env.VITE_API_URL_UPDATE_PEDIDO;
+
     useEffect(() => {
         if (pedido && open) {
-            console.log("Pedido recebido para edição:", pedido); // Debugging
             setCliente(pedido.cliente || "");
             setEmail(pedido.email || "");
-            setItens(pedido.itens ? [...pedido.itens] : []); // Clonar os itens para evitar mutações
+            setItens(pedido.itens ? [...pedido.itens] : []);
+            setTotal(pedido.total || 0);
         }
     }, [pedido, open]);
 
-    // Se o pedido ainda não estiver carregado, não renderiza nada
     if (!pedido) return null;
 
-    // Adicionar um novo item ao pedido
-    const adicionarItem = () => {
-        if (novoItem.produto.trim() === "" || novoItem.preco <= 0 || novoItem.quantidade <= 0) {
-            alert("Preencha os campos corretamente para adicionar um item.");
-            return;
-        }
-        setItens([...itens, { ...novoItem, id: crypto.randomUUID() }]);
-        setNovoItem({ id: "", produto: "", quantidade: 1, preco: 0 });
+    const recalcularTotal = (itensAtualizados: ItemPedido[]) => {
+        const novoTotal = itensAtualizados.reduce((acc, item) => acc + item.preco * item.quantidade, 0);
+        setTotal(novoTotal);
     };
 
-    // Remover um item do pedido
-    const removerItem = (id: string) => {
-        setItens(itens.filter((item) => item.id !== id));
-    };
-
-    // Atualizar o pedido na API
     const handleUpdatePedido = async () => {
         if (!cliente || !email || itens.length === 0) {
-            alert("Preencha todos os campos e adicione pelo menos um item.");
+            setAlerta({ message: "Preencha todos os campos e adicione pelo menos um item", severity: "warning" });
             return;
         }
 
-        const pedidoAtualizado = { cliente, email, itens };
+        const pedidoAtualizado = { cliente, email, itens, total };
 
         try {
             const response = await fetch(`${API_URL_UPDATE_PEDIDO}/${pedido.id}`, {
@@ -82,92 +77,120 @@ const EditarPedidoModal: React.FC<EditarPedidoModalProps> = ({ pedido, open, onC
 
             if (!response.ok) throw new Error("Erro ao atualizar pedido");
 
-            alert("Pedido atualizado com sucesso!");
-
+            setAlerta({ message: "Pedido atualizado com sucesso!", severity: "success" });
             onPedidoAtualizado();
             onClose();
         } catch (error) {
-            alert("Erro ao atualizar pedido. Tente novamente.");
+            setAlerta({ message: "Erro ao atualizar o pedido", severity: "error" });
         }
     };
 
+    const adicionarItem = () => {
+        if (novoItem.produto.trim() === "" || novoItem.preco <= 0 || novoItem.quantidade <= 0) {
+            setAlerta({ message: "Preencha os campos corretamente para adicionar um item.", severity: "warning" });
+            return;
+        }
+        const novosItens = [...itens, { ...novoItem, id: crypto.randomUUID() }];
+        setItens(novosItens);
+        recalcularTotal(novosItens);
+        setNovoItem({ id: "", produto: "", quantidade: 1, preco: 0 });
+    };
+
+    const removerItem = (id: string) => {
+        setItens(itens.filter((item) => item.id !== id));
+    };
+
+    const handleEditarItem = (item: ItemPedido) => {
+        setItemEditando(item);
+        setIsEditItemModalOpen(true);
+    };
+
+    const handleSalvarItemEditado = () => {
+        if (!itemEditando) return;
+
+        const itensAtualizados = itens.map((item) =>
+            item.id === itemEditando.id ? itemEditando : item
+        );
+        setItens(itensAtualizados);
+        recalcularTotal(itensAtualizados);
+        setIsEditItemModalOpen(false);
+    };
+
+
+
+
+
     return (
-        <Dialog open={open} onClose={onClose} fullWidth maxWidth="sm">
-            <DialogTitle>Editar Pedido</DialogTitle>
-            <DialogContent>
-                <TextField
-                    label="Nome do Cliente"
-                    fullWidth
-                    margin="dense"
-                    value={cliente}
-                    onChange={(e) => setCliente(e.target.value)}
-                />
-                <TextField
-                    label="Email"
-                    fullWidth
-                    margin="dense"
-                    type="email"
-                    value={email}
-                    onChange={(e) => setEmail(e.target.value)}
-                />
+        <>
+            <Dialog open={open} onClose={onClose} fullWidth maxWidth="sm">
+                <DialogTitle>Editar Pedido</DialogTitle>
+                <DialogContent>
+                    <TextField label="Nome do Cliente" fullWidth margin="dense" value={cliente} onChange={(e) => setCliente(e.target.value)} />
+                    <TextField label="Email" fullWidth margin="dense" type="email" value={email} onChange={(e) => setEmail(e.target.value)} />
+                    <p><strong>Total Atualizado:</strong> R$ {total.toFixed(2)}</p>
 
-                <h3>Itens do Pedido</h3>
-                <List>
-                    {itens.length > 0 ? (
-                        itens.map((item) => (
-                            <ListItem key={item.id} secondaryAction={
-                                <IconButton edge="end" color="error" onClick={() => removerItem(item.id)}>
-                                    <DeleteIcon />
-                                </IconButton>
-                            }>
-                                {item.produto} - {item.quantidade}x - R$ {item.preco.toFixed(2)}
-                            </ListItem>
-                        ))
-                    ) : (
-                        <p style={{ color: "red" }}>Nenhum item encontrado no pedido.</p>
-                    )}
-                </List>
+                    <h3>Itens do Pedido</h3>
+                    <List>
+                        {itens.length > 0 ? (
+                            itens.map((item) => (
+                                <ListItem key={item.id} secondaryAction={
+                                    <>
+                                        <IconButton color="primary" onClick={() => handleEditarItem(item)}>
+                                            <EditIcon />
+                                        </IconButton>
+                                        <IconButton color="error" onClick={() => {
+                                            const novosItens = itens.filter(i => i.id !== item.id);
+                                            setItens(novosItens);
+                                            recalcularTotal(novosItens);
+                                        }}>
+                                            <DeleteIcon />
+                                        </IconButton>
+                                    </>
+                                }>
+                                    {item.produto} - {item.quantidade}x - R$ {item.preco.toFixed(2)}
+                                </ListItem>
+                            ))
+                        ) : (
+                            <p style={{ color: "red" }}>Nenhum item encontrado no pedido.</p>
+                        )}
+                    </List>
 
-                <TextField
-                    label="Produto"
-                    fullWidth
-                    margin="dense"
-                    value={novoItem.produto}
-                    onChange={(e) => setNovoItem({ ...novoItem, produto: e.target.value })}
-                />
-                <TextField
-                    label="Quantidade"
-                    type="number"
-                    fullWidth
-                    margin="dense"
-                    value={novoItem.quantidade}
-                    onChange={(e) => setNovoItem({ ...novoItem, quantidade: parseInt(e.target.value) })}
-                />
-                <TextField
-                    label="Preço"
-                    type="number"
-                    fullWidth
-                    margin="dense"
-                    value={novoItem.preco}
-                    onChange={(e) => setNovoItem({ ...novoItem, preco: parseFloat(e.target.value) })}
-                />
+                    <TextField label="Produto" fullWidth margin="dense" value={novoItem.produto} onChange={(e) => setNovoItem({ ...novoItem, produto: e.target.value })} />
+                    <TextField label="Quantidade" type="number" fullWidth margin="dense" value={novoItem.quantidade} onChange={(e) => setNovoItem({ ...novoItem, quantidade: parseInt(e.target.value) })} />
+                    <TextField label="Preço" type="number" fullWidth margin="dense" value={novoItem.preco} onChange={(e) => setNovoItem({ ...novoItem, preco: parseFloat(e.target.value) })} />
 
-                <Button
-                    variant="contained"
-                    color="primary"
-                    startIcon={<AddIcon />}
-                    onClick={adicionarItem}
-                    sx={{ mt: 2 }}
-                >
-                    Adicionar Item
-                </Button>
-            </DialogContent>
-            <DialogActions>
-                <Button onClick={onClose} color="error">Cancelar</Button>
-                <Button onClick={handleUpdatePedido} color="primary" variant="contained">Salvar Alterações</Button>
-            </DialogActions>
-        </Dialog>
+                    <Button variant="contained" color="primary" startIcon={<AddIcon />} onClick={adicionarItem} sx={{ mt: 2 }}>Adicionar Item</Button>
+                </DialogContent>
+                <DialogActions>
+                    <Button onClick={onClose} color="error">Cancelar</Button>
+                    <Button onClick={handleUpdatePedido} color="primary" variant="contained">Salvar Alterações</Button>
+                </DialogActions>
+            </Dialog>
+
+            {/* Modal para editar item */}
+            <Dialog open={isEditItemModalOpen} onClose={() => setIsEditItemModalOpen(false)} fullWidth maxWidth="sm">
+                <DialogTitle>Editar Item</DialogTitle>
+                <DialogContent>
+                    <TextField label="Produto" fullWidth margin="dense" value={itemEditando?.produto || ""} onChange={(e) => setItemEditando({ ...itemEditando!, produto: e.target.value })} />
+                    <TextField label="Quantidade" type="number" fullWidth margin="dense" value={itemEditando?.quantidade || 1} onChange={(e) => setItemEditando({ ...itemEditando!, quantidade: parseInt(e.target.value) })} />
+                    <TextField label="Preço" type="number" fullWidth margin="dense" value={itemEditando?.preco || 0} onChange={(e) => setItemEditando({ ...itemEditando!, preco: parseFloat(e.target.value) })} />
+                </DialogContent>
+                <DialogActions>
+                    <Button onClick={() => setIsEditItemModalOpen(false)} color="error">Cancelar</Button>
+                    <Button onClick={handleSalvarItemEditado} color="primary" variant="contained">Salvar</Button>
+                </DialogActions>
+            </Dialog>
+
+            <Snackbar open={!!alerta.severity} autoHideDuration={3000} onClose={() => setAlerta({ message: "", severity: null })}>
+                {alerta.severity ? (
+                    <Alert severity={alerta.severity} onClose={() => setAlerta({ message: "", severity: null })}>
+                        {alerta.message}
+                    </Alert>
+                ) : undefined}
+            </Snackbar>
+        </>
     );
 };
 
 export default EditarPedidoModal;
+
