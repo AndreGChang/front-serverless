@@ -1,8 +1,0 @@
-{
-    "routes": [
-      { "src": "/register", "dest": "/index.html" },
-      { "src": "/pedidos", "dest": "/index.html" },
-      { "src": "/login", "dest": "/index.html" },
-      { "src": "/.*", "dest": "/index.html" } 
-    ]
-  }
