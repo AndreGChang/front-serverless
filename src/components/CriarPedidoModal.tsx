@@ -1,12 +1,11 @@
 import React, { useState } from "react";
-import { Dialog, DialogTitle, DialogContent, DialogActions, Button, TextField, List, ListItem, IconButton } from "@mui/material";
+import { Dialog, DialogTitle, DialogContent, DialogActions, Button, TextField, List, ListItem, IconButton, Alert, Snackbar } from "@mui/material";
 import AddIcon from "@mui/icons-material/Add";
 import DeleteIcon from "@mui/icons-material/Delete";
-
 import { Pedido, ItemPedido } from "../types";
+import { auth } from "../firebaseConfig"; // Importando a autenticação para obter o token do usuário
 
-
-const API_URL_CRIAR_PEDIDO = "https://salvar-pedido-155688859997.us-central1.run.app/pedidos";
+const API_URL_CRIAR_PEDIDO = import.meta.env.VITE_API_URL_CRIAR_PEDIDO;
 
 interface CriarPedidoModalProps {
     open: boolean;
@@ -19,10 +18,11 @@ const CriarPedidoModal: React.FC<CriarPedidoModalProps> = ({ open, onClose, onPe
     const [email, setEmail] = useState("");
     const [itens, setItens] = useState<ItemPedido[]>([]);
     const [novoItem, setNovoItem] = useState<ItemPedido>({ id: "", produto: "", quantidade: 1, preco: 0 });
+    const [alerta, setAlerta] = useState<{ message: string; severity: "success" | "error" | "info" | "warning" | null }>({ message: "", severity: null });
 
     const adicionarItem = () => {
         if (!novoItem.produto.trim() || novoItem.preco <= 0 || novoItem.quantidade <= 0) {
-            alert("Preencha os campos corretamente para adicionar um item.");
+            setAlerta({ message: "Preencha os campos corretamente para adicionar um item.", severity: "warning" });
             return;
         }
 
@@ -36,44 +36,47 @@ const CriarPedidoModal: React.FC<CriarPedidoModalProps> = ({ open, onClose, onPe
 
     const handleCriarPedido = async () => {
         if (!cliente || !email || itens.length === 0) {
-            alert("Preencha todos os campos e adicione pelo menos um item.");
+            setAlerta({ message: "Preencha todos os campos e adicione pelo menos um item.", severity: "warning" });
             return;
         }
     
-        // Calcula o total do pedido
-        const totalPedido = itens.reduce((acc, item) => acc + item.preco * item.quantidade, 0);
+        const user = auth.currentUser;
+        if (!user) {
+            setAlerta({ message: "Usuário não autenticado.", severity: "error" });
+            return;
+        }
+    
+        const token = await user.getIdToken();
     
         const pedido = {
             cliente,
             email,
             itens,
-            total: totalPedido,
+            total: itens.reduce((acc, item) => acc + item.preco * item.quantidade, 0),
             status: "PENDENTE",
         };
     
         try {
             const response = await fetch(`${API_URL_CRIAR_PEDIDO}/salvar_pedido`, {
                 method: "POST",
-                headers: { "Content-Type": "application/json" },
+                headers: {
+                    "Content-Type": "application/json",
+                    "Authorization": `Bearer ${token}`,
+                },
                 body: JSON.stringify(pedido),
             });
     
             if (!response.ok) throw new Error("Erro ao criar pedido");
     
             const data: Pedido = await response.json();
-            alert(`Pedido criado com sucesso! ID: ${data.id}`);
-    
-            
+            setAlerta({ message: `Pedido criado com sucesso! ID: ${data.id}`, severity: "success" });
             onPedidoCriado(data);
-    
-            
             setCliente("");
             setEmail("");
             setItens([]);
-    
             onClose();
         } catch (error) {
-            alert("Erro ao criar pedido. Tente novamente.");
+            setAlerta({ message: "Erro ao criar o pedido", severity: "error" });
         }
     };
     
@@ -154,6 +157,18 @@ const CriarPedidoModal: React.FC<CriarPedidoModalProps> = ({ open, onClose, onPe
                 <Button onClick={onClose} color="error">Cancelar</Button>
                 <Button onClick={handleCriarPedido} color="primary" variant="contained">Criar Pedido</Button>
             </DialogActions>
+
+            <Snackbar
+                open={!!alerta.severity}
+                autoHideDuration={3000}
+                onClose={() => setAlerta({ message: "", severity: null })}
+            >
+                {alerta.severity ? (
+                    <Alert severity={alerta.severity} onClose={() => setAlerta({ message: "", severity: null })}>
+                        {alerta.message}
+                    </Alert>
+                ) : undefined}
+            </Snackbar>
         </Dialog>
     );
 };
