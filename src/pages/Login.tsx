@@ -2,7 +2,7 @@ import React, { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { TextField, Button, Container, Typography, Alert, Stack, Paper } from "@mui/material";
 import { signInWithCustomToken } from "firebase/auth";
-import { auth } from "../firebaseConfig";
+import { auth } from "../firebaseconfig";
 
 const API_URL_LOGAR = import.meta.env.VITE_API_URL_LOGAR;
 const FIREBASE_API_KEY = import.meta.env.VITE_FIREBASE_API_KEY;

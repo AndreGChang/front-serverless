@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { Dialog, DialogTitle, DialogContent, DialogActions, Button, FormControl, InputLabel, Select, MenuItem, Snackbar, Alert, CircularProgress } from "@mui/material";
-import { auth } from "../firebaseConfig"; // Importa Firebase Auth
+import { auth } from "../firebaseconfig"; // Importa Firebase Auth
 
 // Interface para tipagem do pedido
 interface Pedido {

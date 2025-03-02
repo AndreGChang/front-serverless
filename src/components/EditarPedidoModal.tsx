@@ -3,7 +3,7 @@ import { Dialog, DialogTitle, DialogContent, DialogActions, Button, TextField, L
 import AddIcon from "@mui/icons-material/Add";
 import DeleteIcon from "@mui/icons-material/Delete";
 import EditIcon from "@mui/icons-material/Edit";
-import { auth } from "../firebaseConfig"; // Importa a autenticação do Firebase
+import { auth } from "../firebaseconfig"; // Importa a autenticação do Firebase
 
 // Interfaces para tipagem
 interface ItemPedido {
