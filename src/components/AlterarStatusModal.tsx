@@ -38,17 +38,17 @@ const AlterarStatusModal: React.FC<AlterarStatusModalProps> = ({ pedido, open, o
             setAlerta({ message: "Selecione um status.", severity: "warning" });
             return;
         }
-    
+
         setCarregando(true); // Ativa o estado de carregamento
-    
+
         try {
             // Verifica se o usuário está autenticado
             const user = auth.currentUser;
             if (!user) throw new Error("Usuário não autenticado");
-    
+
             // Obtém o token JWT do Firebase
             const token = await user.getIdToken();
-    
+
             // Faz a requisição para atualizar o status do pedido
             const response = await fetch(`${API_URL_ATUALIZAR_STATUS}/${pedido.id}`, {
                 method: "PUT", // Se a API aceitar PATCH, altere para "PATCH"
@@ -58,15 +58,15 @@ const AlterarStatusModal: React.FC<AlterarStatusModalProps> = ({ pedido, open, o
                 },
                 body: JSON.stringify({ status: statusSelecionado }),
             });
-    
+
             if (!response.ok) throw new Error("Erro ao atualizar status");
-    
+
             // Atualiza o estado global com o novo status
             await onStatusAtualizado(statusSelecionado);
-    
+
             // Mostra alerta de sucesso
             setAlerta({ message: "Status atualizado com sucesso!", severity: "success" });
-    
+
             // Fecha a modal
             onClose();
         } catch (error) {
@@ -75,7 +75,7 @@ const AlterarStatusModal: React.FC<AlterarStatusModalProps> = ({ pedido, open, o
             setCarregando(false); // Desativa o estado de carregamento
         }
     };
-    
+
 
     return (
         <>
