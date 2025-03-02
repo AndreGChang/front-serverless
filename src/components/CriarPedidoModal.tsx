@@ -3,7 +3,7 @@ import { Dialog, DialogTitle, DialogContent, DialogActions, Button, TextField, L
 import AddIcon from "@mui/icons-material/Add";
 import DeleteIcon from "@mui/icons-material/Delete";
 import { Pedido, ItemPedido } from "../types";
-import { auth } from "../firebaseconfig"; // Importando a autenticação para obter o token do usuário
+import { auth } from "../firebaseConfig"; // Importando a autenticação para obter o token do usuário
 
 const API_URL_CRIAR_PEDIDO = import.meta.env.VITE_API_URL_CRIAR_PEDIDO;
 

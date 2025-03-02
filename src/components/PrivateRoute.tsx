@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from "react";
 import { Navigate } from "react-router-dom";
-import { auth } from "../firebaseconfig";
+import { auth } from "../firebaseConfig";
 import { CircularProgress, Container } from "@mui/material";
 
 interface PrivateRouteProps {
