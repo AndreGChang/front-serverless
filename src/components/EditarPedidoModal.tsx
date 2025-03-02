@@ -3,6 +3,7 @@ import { Dialog, DialogTitle, DialogContent, DialogActions, Button, TextField, L
 import AddIcon from "@mui/icons-material/Add";
 import DeleteIcon from "@mui/icons-material/Delete";
 import EditIcon from "@mui/icons-material/Edit";
+import { auth } from "../firebaseConfig"; // Importa a autenticação do Firebase
 
 // Interfaces para tipagem
 interface ItemPedido {
@@ -29,6 +30,9 @@ interface EditarPedidoModalProps {
     onPedidoAtualizado: () => void;
 }
 
+// URL da API vinda do .env
+const API_URL_UPDATE_PEDIDO = import.meta.env.VITE_API_URL_UPDATE_PEDIDO;
+
 const EditarPedidoModal: React.FC<EditarPedidoModalProps> = ({ pedido, open, onClose, onPedidoAtualizado }) => {
     const [cliente, setCliente] = useState("");
     const [email, setEmail] = useState("");
@@ -38,11 +42,6 @@ const EditarPedidoModal: React.FC<EditarPedidoModalProps> = ({ pedido, open, onC
     const [isEditItemModalOpen, setIsEditItemModalOpen] = useState(false);
     const [total, setTotal] = useState(0);
     const [alerta, setAlerta] = useState<{ message: string; severity: "success" | "error" | "info" | "warning" | null }>({ message: "", severity: null });
-
-    // const API_URL_UPDATE_PEDIDO = "https://aualizar-status-pedido-155688859997.us-central1.run.app/pedidos";
-
-
-    const API_URL_UPDATE_PEDIDO = import.meta.env.VITE_API_URL_UPDATE_PEDIDO;
 
     useEffect(() => {
         if (pedido && open) {
@@ -65,18 +64,29 @@ const EditarPedidoModal: React.FC<EditarPedidoModalProps> = ({ pedido, open, onC
             setAlerta({ message: "Preencha todos os campos e adicione pelo menos um item", severity: "warning" });
             return;
         }
-
+    
+        const user = auth.currentUser;
+        if (!user) {
+            setAlerta({ message: "Usuário não autenticado.", severity: "error" });
+            return;
+        }
+    
+        const token = await user.getIdToken();
+    
         const pedidoAtualizado = { cliente, email, itens, total };
-
+    
         try {
-            const response = await fetch(`${API_URL_UPDATE_PEDIDO}/${pedido.id}`, {
+            const response = await fetch(`${API_URL_UPDATE_PEDIDO}/pedidos/${pedido.id}`, {
                 method: "PUT",
-                headers: { "Content-Type": "application/json" },
+                headers: {
+                    "Content-Type": "application/json",
+                    "Authorization": `Bearer ${token}`,
+                },
                 body: JSON.stringify(pedidoAtualizado),
             });
-
+    
             if (!response.ok) throw new Error("Erro ao atualizar pedido");
-
+    
             setAlerta({ message: "Pedido atualizado com sucesso!", severity: "success" });
             onPedidoAtualizado();
             onClose();
@@ -84,6 +94,7 @@ const EditarPedidoModal: React.FC<EditarPedidoModalProps> = ({ pedido, open, onC
             setAlerta({ message: "Erro ao atualizar o pedido", severity: "error" });
         }
     };
+    
 
     const adicionarItem = () => {
         if (novoItem.produto.trim() === "" || novoItem.preco <= 0 || novoItem.quantidade <= 0) {
@@ -97,7 +108,9 @@ const EditarPedidoModal: React.FC<EditarPedidoModalProps> = ({ pedido, open, onC
     };
 
     const removerItem = (id: string) => {
-        setItens(itens.filter((item) => item.id !== id));
+        const novosItens = itens.filter((item) => item.id !== id);
+        setItens(novosItens);
+        recalcularTotal(novosItens);
     };
 
     const handleEditarItem = (item: ItemPedido) => {
@@ -115,10 +128,6 @@ const EditarPedidoModal: React.FC<EditarPedidoModalProps> = ({ pedido, open, onC
         recalcularTotal(itensAtualizados);
         setIsEditItemModalOpen(false);
     };
-
-
-
-
 
     return (
         <>
@@ -138,11 +147,7 @@ const EditarPedidoModal: React.FC<EditarPedidoModalProps> = ({ pedido, open, onC
                                         <IconButton color="primary" onClick={() => handleEditarItem(item)}>
                                             <EditIcon />
                                         </IconButton>
-                                        <IconButton color="error" onClick={() => {
-                                            const novosItens = itens.filter(i => i.id !== item.id);
-                                            setItens(novosItens);
-                                            recalcularTotal(novosItens);
-                                        }}>
+                                        <IconButton color="error" onClick={() => removerItem(item.id)}>
                                             <DeleteIcon />
                                         </IconButton>
                                     </>
@@ -167,30 +172,27 @@ const EditarPedidoModal: React.FC<EditarPedidoModalProps> = ({ pedido, open, onC
                 </DialogActions>
             </Dialog>
 
-            {/* Modal para editar item */}
-            <Dialog open={isEditItemModalOpen} onClose={() => setIsEditItemModalOpen(false)} fullWidth maxWidth="sm">
-                <DialogTitle>Editar Item</DialogTitle>
-                <DialogContent>
-                    <TextField label="Produto" fullWidth margin="dense" value={itemEditando?.produto || ""} onChange={(e) => setItemEditando({ ...itemEditando!, produto: e.target.value })} />
-                    <TextField label="Quantidade" type="number" fullWidth margin="dense" value={itemEditando?.quantidade || 1} onChange={(e) => setItemEditando({ ...itemEditando!, quantidade: parseInt(e.target.value) })} />
-                    <TextField label="Preço" type="number" fullWidth margin="dense" value={itemEditando?.preco || 0} onChange={(e) => setItemEditando({ ...itemEditando!, preco: parseFloat(e.target.value) })} />
-                </DialogContent>
-                <DialogActions>
-                    <Button onClick={() => setIsEditItemModalOpen(false)} color="error">Cancelar</Button>
-                    <Button onClick={handleSalvarItemEditado} color="primary" variant="contained">Salvar</Button>
-                </DialogActions>
-            </Dialog>
+
+            {itemEditando && (
+                <Dialog open={isEditItemModalOpen} onClose={() => setIsEditItemModalOpen(false)} fullWidth maxWidth="sm">
+                    <DialogTitle>Editar Item</DialogTitle>
+                    <DialogContent>
+                        <TextField label="Produto" fullWidth margin="dense" value={itemEditando.produto} onChange={(e) => setItemEditando({ ...itemEditando, produto: e.target.value })} />
+                        <TextField label="Quantidade" type="number" fullWidth margin="dense" value={itemEditando.quantidade} onChange={(e) => setItemEditando({ ...itemEditando, quantidade: parseInt(e.target.value) })} />
+                        <TextField label="Preço" type="number" fullWidth margin="dense" value={itemEditando.preco} onChange={(e) => setItemEditando({ ...itemEditando, preco: parseFloat(e.target.value) })} />
+                    </DialogContent>
+                    <DialogActions>
+                        <Button onClick={() => setIsEditItemModalOpen(false)} color="error">Cancelar</Button>
+                        <Button onClick={handleSalvarItemEditado} color="primary" variant="contained">Salvar</Button>
+                    </DialogActions>
+                </Dialog>
+            )}
 
             <Snackbar open={!!alerta.severity} autoHideDuration={3000} onClose={() => setAlerta({ message: "", severity: null })}>
-                {alerta.severity ? (
-                    <Alert severity={alerta.severity} onClose={() => setAlerta({ message: "", severity: null })}>
-                        {alerta.message}
-                    </Alert>
-                ) : undefined}
+                {alerta.severity ? ( <Alert severity={alerta.severity}>{alerta.message}</Alert>) : undefined}
             </Snackbar>
         </>
     );
 };
 
 export default EditarPedidoModal;
-
