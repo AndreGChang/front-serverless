@@ -16,6 +16,11 @@ const Register: React.FC = () => {
     setError(null);
     setSuccess(null);
 
+    if (password.length < 6) {
+      setError("A senha deve ter pelo menos 6 caracteres.");
+      return;
+    }
+
     try {
       const response = await fetch(API_URL_REGISTRAR, {
         method: "POST",
@@ -60,6 +65,7 @@ const Register: React.FC = () => {
             value={password}
             onChange={(e) => setPassword(e.target.value)}
             required
+            helperText="A senha deve ter pelo menos 6 caracteres."
           />
           <Button type="submit" variant="contained" color="primary" fullWidth style={{ marginTop: "10px" }}>
             Registrar

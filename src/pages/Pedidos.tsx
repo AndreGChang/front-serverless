@@ -9,7 +9,7 @@ import CriarPedidoModal from "../components/CriarPedidoModal";
 import EditarPedidoModal from "../components/EditarPedidoModal";
 import AlterarStatusModal from "../components/AlterarStatusModal";
 import { Pedido } from "../types";
-import { auth } from "../firebaseConfig";
+import { auth } from "../firebaseconfig";
 import { useNavigate } from "react-router-dom";
 
 const Pedidos: React.FC = () => {
